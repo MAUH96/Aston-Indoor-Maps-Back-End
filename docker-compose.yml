@@ -1,0 +1,17 @@
+version: "3.4"
+services:
+  node_backend:
+    build: ./backend
+    image: node:10.15.3
+    ports:
+      - "13000:3000"
+    working_dir: 
+      /backend
+    entrypoint: node --experimental-modules server.mjs
+  neo4j_set:
+    image: neo4j:4.2
+    ports:
+      - "7474:7474"
+      - "7688:7687"
+    volumes:
+      - ./db/dbms:/data/dbms

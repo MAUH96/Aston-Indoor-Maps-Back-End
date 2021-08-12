@@ -1,0 +1,4 @@
+{
+    "appService.deploySubpath": ".",
+    "appService.defaultWebAppToDeploy": "/subscriptions/7d9e9165-0c9d-4913-b7f6-99fc0d809ed9/resourceGroups/Aston-Indoor-Maps-App-Resource/providers/Microsoft.Web/sites/Aston-Indoor-Maps"
+}
