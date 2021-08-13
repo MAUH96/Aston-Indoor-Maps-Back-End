@@ -1,25 +1,11 @@
 import Neode from 'neode'
 import express from 'express'
-import bodyParser from 'body-parser'
-import e from 'express'
-import Integer from 'neo4j-driver/lib/integer.js'
-
-
-//var { json } = require('body-parser')
-//var neo4j = require('neo4j-driver')
-//const { Console } = require('console')
 export var router = express.Router()
-
-
 
 var user = 'neo4j'
 var password = '123456789'
 var uri = 'bolt://localhost'
-//var uri = 'bolt://neo4j:7687'
 var instance = new Neode(uri, user, password);
-//var instance = new Neode('http://neo4j:test@neo4j:7474');
-
-
 var QueryToGetRooms = "MATCH(n) RETURN n"
 var getX = 'MATCH (n:Room {num: $num}) RETURN n.x'
 var getY = 'MATCH (n:Room {num: $num}) RETURN n.y'
@@ -29,8 +15,9 @@ var destinationRoom;
 var choosenPath = []
 
 
-
-
+/**
+ * sending list of room nodes
+ */
 router.get('/rooms',(req, res) =>{
   instance.cypher(QueryToGetRooms)
     .then(results => {
@@ -47,6 +34,10 @@ router.get('/rooms',(req, res) =>{
     })
 })
 
+/**
+ * retrieving current room
+ */
+
 router.post("/currentPosition", (req, res) => {
 
   var floorModel = []
@@ -58,7 +49,9 @@ router.post("/currentPosition", (req, res) => {
 
 })
 
-
+/**
+ * Retriving current destination room
+ */
 
 router.post("/destinationRoom", (req, res) => {
 
@@ -71,6 +64,10 @@ router.post("/destinationRoom", (req, res) => {
   console.log(destinationRoom)
 
 })
+
+/**
+ * confirms that the destination has been choosen to change the screen.
+ */
 
 router.get("/isSelected", (req, res) => {
   if (destinationRoom != null) {
@@ -99,13 +96,15 @@ router.get("/pathCoordinates", (req, res) => {
   var destinationRoomString = "" + destinationRoom
   var currentRoomString = "" + currentRoom
 
+  /**
+   * retrivieng the x and y coordinates of first path
+   */
+
   var xQu = "MATCH path = (from:Room { num:$current })-[:LEAD*..500]->(to:Room { num: $destination}) RETURN[n in nodes(path)| n.x] AS dataXF, [n in nodes(path)|n.y] AS dataYF, [n in nodes(path)|n.num] as roomNum LIMIT 1"
   instance.cypher(xQu,{
     current:currentRoom,
     destination:destinationRoomString
   }).then(results => {
-    //console.log(JSON.stringify(results))
-    //console.log(results.records)
     results.records.forEach(record => {
       firstPathDB.push({
         xDBCoordinates: record._fields[0],
@@ -113,38 +112,32 @@ router.get("/pathCoordinates", (req, res) => {
         roomNum: record._fields[2]
       })
     })
-    //(JSON.stringify(firstPathDB[0].tojas))
+
     var xCoordStringArray = new Array()
     var yCoordStringArray = new Array()
     for (var i = 0; i < firstPathDB.length; i++) {
       xCoordStringArray.push(firstPathDB[i].xDBCoordinates);
       yCoordStringArray.push(firstPathDB[i].yDBCoordinates);
     }
-
-
     xCoordIntArrayF = xCoordStringArray[0].map(i => Number(i)); //transform string values into integer array
     yCoordIntArrayF = yCoordStringArray[0].map(i => Number(i));
-    // console.log("X " + xCoordIntArrayF + " " + "Y " + yCoordIntArrayF);
-
+  
     /**
      * Retrieving X and Y coordinates of an alternative path into an array of integers
      */
 
     var secondPathDB = []
+    var costsOfBothPath = []
     var xCoordStringArray = new Array()
     var yCoordStringArray = new Array()
     var yCoordIntArrayS;
     var xCoordIntArrayS;
-
 
     var yQu = "MATCH path = (from:Room { num:$current })-[:ALEAD*..500]->(to:Room { num: $destination}) RETURN[n in nodes(path)| n.x] AS dataXS, [n in nodes(path)|n.y] AS dataYS, [n in nodes(path)|n.num] as roomNum LIMIT 1"
     instance.cypher(yQu, {
       current: currentRoomString,
       destination: destinationRoomString
     }).then(results => {
-
-      //console.log(results.records) 
-
       results.records.forEach(record => {
         secondPathDB.push({
           xDBCoordinates: record._fields[0],
@@ -153,20 +146,13 @@ router.get("/pathCoordinates", (req, res) => {
         })
       })
 
-
-
       for (var i = 0; i < secondPathDB.length; i++) {
         xCoordStringArray.push(secondPathDB[i].xDBCoordinates);
         yCoordStringArray.push(secondPathDB[i].yDBCoordinates);
-
       }
       xCoordIntArrayS = xCoordStringArray[0].map(i => Number(i));
       yCoordIntArrayS = yCoordStringArray[0].map(i => Number(i));
-      // console.log("X " + xCoordIntArrayS + " " + "Y " + yCoordIntArrayS)
-
-
-
-      var costsOfBothPath = []
+     
       var costQuery = "RETURN gds.alpha.similarity.euclideanDistance($xFirst, $yFirst) AS costFirstPath,gds.alpha.similarity.euclideanDistance($xSecond, $ySecond) AS costSecondPath"
       instance.cypher(costQuery, {
         xFirst: xCoordIntArrayF,
@@ -180,7 +166,11 @@ router.get("/pathCoordinates", (req, res) => {
             costSecondPath: record._fields[1]
           })
         })
-       // console.log("true")
+
+
+        /**
+         * compares the cost of both path and chooses the cheapest one
+         */
 
         if (costsOfBothPath[0].costFirstPath < costsOfBothPath[0].costSecondPath) {
           res.status(200).json(firstPathDB)
@@ -192,7 +182,7 @@ router.get("/pathCoordinates", (req, res) => {
         } else {
           res.status(200).json("error")
         }
-        //console.log(results.records)
+       
 
 
       }).catch(error => {
@@ -209,25 +199,3 @@ router.get("/pathCoordinates", (req, res) => {
 
   destinationRoom = null
 })
-
-// router.get("/lifts", (req, res) => {
-
-
-//   var liftsNode = [];
-//   var lifts = "MATCH (n:Room) WHERE n.name ENDS WITH 'lift' RETURN n.name, n.x, n.y"
-//   instance.cypher(lifts).then(results => {
-
-//     results.records.forEach(record => {
-
-//       liftsNode.push({
-//         liftName: record._fields[0].properties.name,
-//         liftX: record._fields[0].properties.x,
-//         liftY: record._fields[0].properties.y
-//       })
-
-//     })
-
-//   })
-
-
-// })
